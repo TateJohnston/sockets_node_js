@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="viewport"
+      content="width=device-width,
+initial-scale=1.0"
+    />
+    <title>Socket Chat App</title>
+    <style>
+      body {
+        background-color: rgb(199, 199, 199, 0.2);
+        height: 80vh;
+      }
+      #chatbox {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        background-color: rgba(255, 255, 255, 0.542);
+        height: 100%;
+        width: 100%;
+        border: 2px solid gray;
+      }
+      #onlineUsers {
+        height: 100%;
+        width: 10%;
+        background-color: rgba(255, 255, 255, 0.542);
+        border: 2px solid gray;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        text-transform: uppercase;
+      }
+      #messageBox {
+        width: 100%;
+        display: none;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        margin-top: 5px;
+      }
+      #nicknameContainer {
+        display: flex;
+        height: 30px;
+        align-items: center;
+        gap: 10px;
+        text-transform: uppercase;
+        font-style: italic;
+        color: rgb(53, 51, 51);
+      }
+      #messageBox input {
+        width: 50%;
+        padding: 2px;
+        height: 32px;
+      }
+      #messageBox button {
+        padding: 2px;
+        height: 40px;
+      }
+      button {
+        width: 100px;
+      }
+      #header {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+      #wholeContainer {
+        width: 80%;
+        height: 100%;
+        display: flex;
+        flex-direction: row;
+
+        margin: auto;
+      }
+      .userPicture {
+        width: 75px;
+        background-color: lightblue;
+        height: 75px;
+        margin-left: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #headerContainer {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+      }
+      #userPostList h3 {
+        max-width: 90%;
+        text-overflow: ellipsis;
+      }
+      #userPostList {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        margin-right: 0;
+        align-items: center;
+        justify-content: center;
+        overflow-y: auto;
+      }
+      #chatContent {
+        padding: 10px;
+        overflow-y: scroll;
+      }
+      #chatContent h4 {
+        text-transform: Uppercase;
+        width: fit-content;
+        border-radius: 10px;
+        padding: 3px 20px;
+      }
+      #userTyping {
+        margin: 4px 8px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        font-style: italic;
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="headerContainer">
+      <div id="header">
+        <h2>WELCOME TO WEB SOCKET CHAT</h2>
+        <div id="nicknameContainer">
+          <h5>Choose your nickname to join the chat</h5>
+          <input id="nicknameInput" placeholder="Enter Nickname..." />
+          <button onclick="setNickname()">Enter Room</button>
+        </div>
+        <h3
+          style="
+            display: none;
+            color: red;
+            text-transform: uppercase;
+            margin-top: 5px;
+            margin-bottom: 0;
+          "
+          id="nicknameCheck"
+        ></h3>
+      </div>
+      <div class="userPicture">
+        <h1 class="userPictureLetter" style="text-transform: uppercase"></h1>
+      </div>
+    </div>
+    <div id="wholeContainer">
+      <div id="onlineUsers">
+        <h4 style="color: green; text-decoration: underline">ONLINE USERS</h4>
+        <div id="userPostList"></div>
+      </div>
+      <div id="chatbox">
+        <div id="chatContent"></div>
+        <h4 id="userTyping"></h4>
+      </div>
+    </div>
+    <div id="messageBox">
+      <input id="messageTextInput" placeholder="Send Message..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      let socket = io();
+      const post = document.getElementById("onlineUsers");
+
+      let nickname = "";
+
+      const setNickname = () => {
+        console.log("working");
+        const nicknameText = document.getElementById("nicknameInput");
+        nickname = nicknameText.value.trim();
+
+        if (!nickname) {
+          nicknameText.placeholder = "Please input a valid name";
+        } else {
+          socket.emit("set nickname", nickname);
+          document.getElementById("messageBox").style.display = "flex";
+        }
+      };
+
+      const sendMessage = () => {
+        const messageText = document.getElementById("messageTextInput");
+        const message = messageText.value.trim();
+        if (message) socket.emit("messages", message);
+      };
+
+      document
+        .getElementById("messageTextInput")
+        .addEventListener("keydown", (e) => {
+          let timeout;
+          socket.emit("user typing");
+          clearTimeout(timeout);
+          timeout = setTimeout(() => {
+            socket.emit("user not typing");
+          }, 2000);
+        });
+
+      // socket listening
+
+      socket.on("set nickname", (name) => {
+        const nicknameContainer = document.getElementById("nicknameContainer");
+        const nicknameCheck = document.getElementById("nicknameCheck");
+
+        if (name === "invalid") {
+          nicknameCheck.textContent = `User already exists under ${nickname}`;
+          nicknameCheck.style.display = "flex";
+        } else {
+          nicknameContainer.innerHTML = `<h3>Connected as ${nickname}</h3>`;
+          nicknameCheck.style.display = "none";
+          document.querySelector(".userPictureLetter").textContent =
+            nickname[0];
+        }
+        nicknameContainer.style.visibility = "visible";
+        nicknameContainer.style.color = "darkgreen";
+      });
+
+      socket.on("user list", (users) => {
+        const userPostList = document.getElementById("userPostList");
+        userPostList.innerHTML = "";
+        users.forEach((user) => {
+          const userElem = document.createElement("h3");
+          userElem.innerText = user;
+          if (userElem.innerText === nickname) {
+            userElem.innerText = `${user}(you)`;
+            userElem.style.color = "darkgreen";
+          }
+          userPostList.appendChild(userElem);
+        });
+      });
+
+      socket.on("messages", (message) => {
+        const chatContent = document.getElementById("chatContent");
+        const messageElem = document.createElement("h4");
+        messageElem.innerHTML = `${message.username}: ${message.message}`;
+        console.log("nickname", nickname);
+        chatContent.appendChild(messageElem);
+        chatContent.scrollTop = chatContent.scrollHeight;
+      });
+
+      socket.on("new user connected", (name) => {
+        const chatContent = document.getElementById("chatContent");
+        const messageElem = document.createElement("h4");
+        messageElem.innerText = `${name} has connected!`;
+        messageElem.style.color = "green";
+        messageElem.style.backgroundColor = "lightgreen";
+        chatContent.appendChild(messageElem);
+      });
+
+      socket.on("user disconnected", (msg) => {
+        const chatContent = document.getElementById("chatContent");
+        const messageElem = document.createElement("h4");
+        messageElem.innerText = `${msg.nickname} ${msg.text}!`;
+        messageElem.style.color = "black";
+        messageElem.style.backgroundColor = "red";
+        chatContent.appendChild(messageElem);
+      });
+
+      socket.on("user typing", (user) => {
+        if (user === nickname) return;
+        document.getElementById(
+          "userTyping"
+        ).innerText = `${user} is typing...`;
+      });
+
+      socket.on("user not typing", (user) => {
+        document.getElementById("userTyping").innerText = "";
+      });
+    </script>
+  </body>
+</html>
